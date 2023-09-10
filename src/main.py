@@ -21,7 +21,8 @@ class WeatherData:
 
     def __init__(self, city_name: str):
         """Initialize class WeatherData."""
-        get_lat_lon = WeatherData.__get_lat_lon(city_name)
+        self.geolocator = Nominatim(user_agent="App weather")
+        get_lat_lon = self.__get_lat_lon(city_name)
         self.__latitude = get_lat_lon["lat"]
         self.__longitude = get_lat_lon["lon"]
 
@@ -53,15 +54,30 @@ class WeatherData:
             "visibility": json["visibility"],
         }
 
-    def forecast_data(self):
-        """Get forecast weather data."""
-        return "test"
+    def get_info_city(self):
+        """Get Info about city."""
+        location = self.geolocator.reverse(
+            str(self.__latitude) + "," + str(self.__longitude),
+            language="en",
+        )
+        address = location.raw["address"]
+        city = address.get("city", "").title()
+        if "province" in address:
+            state = address["province"].title()
+        else:
+            state = address["state"].title()
 
-    @staticmethod
-    def __get_lat_lon(city_name: str) -> dict:
+        country = address.get("country", "").title()
+        print(address)
+        return {
+            "city": city + ", ",
+            "state": state + ", ",
+            "country": country,
+        }
+
+    def __get_lat_lon(self, city_name: str) -> dict:
         """Get longitude and latitude."""
-        geolocator = Nominatim(user_agent="App weather")
-        location = geolocator.geocode(city_name)
+        location = self.geolocator.geocode(city_name)
         return {
             "lat": location.latitude,
             "lon": location.longitude,
@@ -118,13 +134,14 @@ class WeatherApp:
         )
 
         # SHOW CITY_NAME IN SEARCH BAR
-        self.city_name_lbl = tk.Label(
+        city_name_lbl = tk.Label(
             self.root,
+            text="Forecast",
             font=("Roboto Bold", 15),
             bg="#171717",
             fg="#fefefe",
         )
-        self.city_name_lbl.place(
+        city_name_lbl.place(
             x=20,
             y=6,
         )
@@ -182,18 +199,34 @@ class WeatherApp:
             x=679,
             y=11,
         )
+        self.city_info_data = tk.Label(
+            self.root,
+            bg="#204c8a",
+            fg="#fefefe",
+            font=("Roboto Regular", "10"),
+        )
+        self.city_info_data.place(
+            x=40,
+            y=50,
+        )
 
     def set_current_weather(self):
         """Set current weather."""
         get_data = WeatherData(self.__city_name.get()).current_data()
-        self.city_name_lbl.configure(
-            text=self.__city_name.get().title(),
-        )
+
         my_var = {
             "wind": (int(get_data["wind"]) * 3600) / 1000,
             "feels_like": str(int(get_data["feels_like"])),
             "vis": int(get_data["visibility"]),
+            "get_info_city": WeatherData(
+                self.__city_name.get(),
+            ).get_info_city(),
         }
+        self.city_info_data.configure(
+            text=my_var["get_info_city"]["city"]
+            + my_var["get_info_city"]["state"]
+            + my_var["get_info_city"]["country"],
+        )
         frame = tk.Frame(
             self.root,
             width=490,

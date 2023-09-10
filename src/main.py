@@ -96,6 +96,9 @@ class WeatherApp:
             "location": WeatherApp.__load_image("location.png"),
             "current_bg": WeatherApp.__load_image("cr_img.png"),
         }
+        # CITY NAME
+        self.__city_name = tk.StringVar()
+
         # SEARCH BAR
         self.search_bar()
         self.root.mainloop()
@@ -115,14 +118,13 @@ class WeatherApp:
         )
 
         # SHOW CITY_NAME IN SEARCH BAR
-        city_name_lbl = tk.Label(
+        self.city_name_lbl = tk.Label(
             self.root,
-            text="-",
             font=("Roboto Bold", 15),
             bg="#171717",
             fg="#fefefe",
         )
-        city_name_lbl.place(
+        self.city_name_lbl.place(
             x=20,
             y=6,
         )
@@ -154,7 +156,6 @@ class WeatherApp:
         )
 
         # SEARCH INPUT
-        self.__city_name = tk.StringVar()
         search_entry = tk.Entry(
             self.root,
             textvariable=self.__city_name,
@@ -185,6 +186,9 @@ class WeatherApp:
     def set_current_weather(self):
         """Set current weather."""
         get_data = WeatherData(self.__city_name.get()).current_data()
+        self.city_name_lbl.configure(
+            text=self.__city_name.get().title(),
+        )
         my_var = {
             "wind": (int(get_data["wind"]) * 3600) / 1000,
             "feels_like": str(int(get_data["feels_like"])),

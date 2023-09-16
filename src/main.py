@@ -1,7 +1,7 @@
 """Import the necessary modules to build the weather app."""
 import tkinter as tk
 from configparser import ConfigParser
-from datetime import datetime
+from datetime import datetime, timedelta
 from os import path
 
 import matplotlib.figure as fig
@@ -122,7 +122,9 @@ class WeatherData:
         )
         json = res.json()
         hourly_weather = []
-        today_date = datetime.now().strftime("%Y-%m-%d")
+        td_day = datetime.now()
+        tm_date = td_day + timedelta(days=1)
+        today_date = tm_date.strftime("%Y-%m-%d")
         for item in json["list"]:
             if item["dt_txt"].startswith(today_date):
                 hourly_weather.append(item)
@@ -683,7 +685,9 @@ class WeatherApp:
 
         # SHOW OTHER DAYS WEATHER
         count = 0
-        for weather_hou in hourly_data:
+        for num, weather_hou in enumerate(hourly_data):
+            if num == 0:
+                continue
             box_future_hou = tk.Frame(
                 frame_hou,
                 bg="#204c8a",

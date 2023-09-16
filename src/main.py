@@ -4,8 +4,10 @@ from configparser import ConfigParser
 from datetime import datetime
 from os import path
 
+import matplotlib.figure as fig
 import requests
 from geopy.geocoders import Nominatim  # type: ignore
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import Image, ImageTk
 
 # GET API FROM CONFIG FILE
@@ -754,6 +756,53 @@ class WeatherApp:
                 y=55,
             )
             count += 130
+
+        # CHART FRAME
+        frame_ne = tk.Frame(
+            self.root,
+            width=400,
+            height=310,
+            bg="#204c8a",
+        )
+        frame_ne.place(
+            x=540,
+            y=70,
+        )
+
+        def chart():
+            figure = fig.Figure(figsize=(430 / 80, 220 / 80), dpi=85)
+            figure.patch.set_facecolor("#204c8a")
+
+            a_x = figure.add_subplot(111)
+
+            # EXTRACT HOURS AND TEMP
+            hours = [weather["hour"] for weather in hourly_data]
+            temperatures = [weather["temp"] for weather in hourly_data]
+
+            # CREATE CHART
+            a_x.plot(
+                hours,
+                temperatures,
+                marker="o",
+                color="white",
+                linestyle="-",
+            )
+            a_x.set_xlabel("Hour")
+            a_x.set_ylabel("Temperature (°C)")
+
+            # SET BG CHART
+            a_x.set_facecolor((0, 0, 0, 0.1))
+
+            a_x.xaxis.label.set_color("white")
+            a_x.yaxis.label.set_color("white")
+            a_x.tick_params(axis="x", colors="white")
+            a_x.tick_params(axis="y", colors="white")
+
+            # DISPLAY CHART
+            canvas = FigureCanvasTkAgg(figure, master=frame_ne)
+            canvas.get_tk_widget().pack()
+
+        chart()
 
     @staticmethod
     def __load_image(img_name: str):

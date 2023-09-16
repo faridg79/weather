@@ -1,10 +1,12 @@
 """Import the necessary modules to build the weather app."""
 import tkinter as tk
 from configparser import ConfigParser
+from datetime import datetime
 from os import path
 
 import requests
 from geopy.geocoders import Nominatim  # type: ignore
+from PIL import Image, ImageTk
 
 # GET API FROM CONFIG FILE
 CONFIG_FILE = "config.ini"
@@ -14,6 +16,18 @@ api_key = config["api_key"]["key"]
 
 # IMAGE PATH
 img_path = path.join("assets", "images") + path.sep
+
+# CURRENT DATETIME
+current_datetime = datetime.now()
+current_datetime = current_datetime.replace(
+    hour=0,
+    minute=0,
+    second=0,
+    microsecond=0,
+)
+day_of_month = current_datetime.strftime("%d")  # 02
+day_name = current_datetime.strftime("%a")  # Thu
+cr_date = day_name + " " + day_of_month
 
 
 class WeatherData:
@@ -37,7 +51,7 @@ class WeatherData:
         res = requests.get(
             url,
             "GET",
-            timeout=5,
+            timeout=15,
         )
         json = res.json()
         return {
@@ -54,6 +68,43 @@ class WeatherData:
             "visibility": json["visibility"],
         }
 
+    def future_data(self):
+        """Get future weather data."""
+        openweather_url = "https://api.openweathermap.org/data/2.5/forecast?"
+        url = (
+            f"{openweather_url}"
+            f"lat={self.__latitude}&lon={self.__longitude}"
+            f"&units=metric&appid={api_key}"
+        )
+        res = requests.get(
+            url,
+            "GET",
+            timeout=10,
+        )
+        json = res.json()
+        daily_weather = []
+        for item in json["list"]:
+            date_time = datetime.utcfromtimestamp(item["dt"])
+
+            if date_time.hour == 12 and date_time > current_datetime:
+                daily_weather.append(item)
+        daily_list = []
+        for weather in daily_weather:
+            dt_txt = weather["dt_txt"]
+            weather_datetime = datetime.strptime(dt_txt, "%Y-%m-%d %H:%M:%S")
+            days_of_the_week = weather_datetime.strftime("%a")
+            days_of_the_month = weather_datetime.strftime("%d")
+            date_day = days_of_the_week + " " + days_of_the_month
+            daily_list.append(
+                {
+                    "date": date_day,
+                    "temp": weather["main"]["temp"],
+                    "humidity": weather["main"]["humidity"],
+                    "icon": weather["weather"][0]["icon"],
+                },
+            )
+        return daily_list
+
     def get_info_city(self):
         """Get Info about city."""
         location = self.geolocator.reverse(
@@ -68,7 +119,6 @@ class WeatherData:
             state = address["state"].title()
 
         country = address.get("country", "").title()
-        print(address)
         return {
             "city": city + ", ",
             "state": state + ", ",
@@ -111,6 +161,8 @@ class WeatherApp:
             "search_icon": WeatherApp.__load_image("loupe.png"),
             "location": WeatherApp.__load_image("location.png"),
             "current_bg": WeatherApp.__load_image("cr_img.png"),
+            "cr_w_bg": WeatherApp.__load_image("cr_w_bg.png"),
+            "other_w_bg": WeatherApp.__load_image("other_w_bg.png"),
         }
         # CITY NAME
         self.__city_name = tk.StringVar()
@@ -213,7 +265,6 @@ class WeatherApp:
     def set_current_weather(self):
         """Set current weather."""
         get_data = WeatherData(self.__city_name.get()).current_data()
-
         my_var = {
             "wind": (int(get_data["wind"]) * 3600) / 1000,
             "feels_like": str(int(get_data["feels_like"])),
@@ -230,7 +281,7 @@ class WeatherApp:
         frame = tk.Frame(
             self.root,
             width=490,
-            height=230,
+            height=220,
             bg="#204c8a",
         )
         frame.place(
@@ -362,6 +413,205 @@ class WeatherApp:
             x=250,
             y=165,
         )
+        self.set_daily_weather(
+            get_data,
+            WeatherData(self.__city_name.get()).future_data(),
+        )
+
+    def set_daily_weather(
+        self,
+        get_data: dict,
+        future_data: list,
+    ):
+        """Set daily weather."""
+        # SET FRAME
+        frame = tk.Frame(
+            self.root,
+            width=980,
+            height=150,
+            bg="#204c8a",
+        )
+        frame.place(
+            x=40,
+            y=300,
+        )
+        # LABEL TITLE
+        title_lbl = tk.Label(
+            frame,
+            fg="#fefefe",
+            bg="#204c8a",
+            font=("Roboto Bold", 10),
+            text="5 DAY FORECAST",
+        )
+        title_lbl.place(
+            x=0,
+            y=0,
+        )
+
+        def current_weather_box():
+            # BOX CURRENT
+            box_cr = tk.Frame(
+                frame,
+                bg="#204c8a",
+            )
+            box_cr.place(
+                x=0,
+                y=25,
+                width=230,
+                height=120,
+            )
+            bg_box_cr = tk.Label(
+                box_cr,
+                bg="#204c8a",
+                image=self.images["cr_w_bg"],
+                border=0,
+            )
+            bg_box_cr.place(
+                x=0,
+                y=0,
+            )
+
+            date_lbl_one = tk.Label(
+                box_cr,
+                fg="#fefefe",
+                font=("Roboto Regular", 9),
+                text="Today",
+                bg="#315793",
+            )
+            date_lbl_one.place(
+                x=10,
+                y=5,
+            )
+            self.images["cr_resized_image"] = ImageTk.PhotoImage(
+                self.resize_image(
+                    Image.open(
+                        img_path + get_data["icon"] + ".png",
+                    ),
+                    60,
+                    60,
+                ),
+            )
+            icon_lbl_one = tk.Label(
+                box_cr,
+                image=self.images["cr_resized_image"],
+                bg="#315793",
+            )
+            icon_lbl_one.place(
+                x=8,
+                y=25,
+                width=60,
+                height=60,
+            )
+            temp_lbl_one = tk.Label(
+                box_cr,
+                fg="#fefefe",
+                font=("Roboto Bold", 9),
+                text=f"{get_data['temp_max']:.0f}°",
+                bg="#315793",
+            )
+            temp_lbl_one.place(
+                x=75,
+                y=32,
+            )
+            humidity_lbl_one = tk.Label(
+                box_cr,
+                fg="#fefefe",
+                font=("Roboto Bold", 9),
+                text=f"{get_data['humidity']}%",
+                bg="#315793",
+            )
+            humidity_lbl_one.place(
+                x=75,
+                y=55,
+            )
+            weather_lbl_one = tk.Label(
+                box_cr,
+                fg="#fefefe",
+                font=("Roboto Bold", 10),
+                text=f"{get_data['weather']}",
+                bg="#315793",
+            )
+            weather_lbl_one.place(
+                x=125,
+                y=41,
+            )
+
+        current_weather_box()
+        # SHOW OTHER DAYS WEATHER
+        x_box = 240
+        for weather in future_data:
+            box_future = tk.Frame(
+                frame,
+                bg="#204c8a",
+                width=120,
+                height=118,
+            )
+            box_future.place(
+                x=x_box,
+                y=25,
+            )
+            box_future_bg = tk.Label(
+                box_future,
+                bg="#204c8a",
+                image=self.images["other_w_bg"],
+                border=0,
+            )
+            box_future_bg.pack()
+
+            date_lbl_one = tk.Label(
+                box_future,
+                fg="#fefefe",
+                font=("Roboto Regular", 9),
+                text=weather["date"],
+                bg="#315793",
+            )
+            date_lbl_one.place(
+                x=10,
+                y=5,
+            )
+            self.images["fu_resized_img" + str(x_box)] = ImageTk.PhotoImage(
+                self.resize_image(
+                    Image.open(
+                        img_path + weather["icon"] + ".png",
+                    ),
+                    60,
+                    60,
+                ),
+            )
+            icon_lbl_one = tk.Label(
+                box_future,
+                image=self.images["fu_resized_img" + str(x_box)],
+                bg="#315793",
+            )
+            icon_lbl_one.place(
+                x=8,
+                y=25,
+                width=60,
+                height=60,
+            )
+            temp_lbl_one = tk.Label(
+                box_future,
+                fg="#fefefe",
+                font=("Roboto Bold", 9),
+                text=f"{weather['temp']:.0f}°",
+                bg="#315793",
+            )
+            temp_lbl_one.place(
+                x=75,
+                y=32,
+            )
+            humidity_lbl_one = tk.Label(
+                box_future,
+                fg="#fefefe",
+                font=("Roboto Bold", 9),
+                text=f"{weather['humidity']}%",
+                bg="#315793",
+            )
+            humidity_lbl_one.place(
+                x=75,
+                y=55,
+            )
+            x_box += 130
 
     @staticmethod
     def __load_image(img_name: str):
@@ -369,5 +619,10 @@ class WeatherApp:
             file=img_path + img_name,
         )
 
+    @staticmethod
+    def resize_image(image, new_width, new_height):
+        """Resize images."""
+        return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
-b = WeatherApp("980x580+100+20", "Weather app - Karyar", "icon.png")
+
+b = WeatherApp("980x630+100+10", "Weather app - Karyar", "icon.png")

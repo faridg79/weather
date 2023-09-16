@@ -105,6 +105,40 @@ class WeatherData:
             )
         return daily_list
 
+    def hourly_data(self):
+        """Get hourly weather data."""
+        openweather_url = "https://api.openweathermap.org/data/2.5/forecast?"
+        url = (
+            f"{openweather_url}"
+            f"lat={self.__latitude}&lon={self.__longitude}"
+            f"&units=metric&appid={api_key}"
+        )
+        res = requests.get(
+            url,
+            "GET",
+            timeout=10,
+        )
+        json = res.json()
+        hourly_weather = []
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        for item in json["list"]:
+            if item["dt_txt"].startswith(today_date):
+                hourly_weather.append(item)
+        hourly_list = []
+        for weather in hourly_weather:
+            dt_txt = weather["dt_txt"]
+            dt_txt_parts = dt_txt.split(" ")[-1].split(":")
+            hour = int(dt_txt_parts[0])
+            hourly_list.append(
+                {
+                    "hour": hour,
+                    "temp": weather["main"]["temp"],
+                    "humidity": weather["main"]["humidity"],
+                    "icon": weather["weather"][0]["icon"],
+                },
+            )
+        return hourly_list
+
     def get_info_city(self):
         """Get Info about city."""
         location = self.geolocator.reverse(
@@ -278,6 +312,7 @@ class WeatherApp:
             + my_var["get_info_city"]["state"]
             + my_var["get_info_city"]["country"],
         )
+
         frame = tk.Frame(
             self.root,
             width=490,
@@ -417,6 +452,9 @@ class WeatherApp:
             get_data,
             WeatherData(self.__city_name.get()).future_data(),
         )
+        self.set_hourly_weather(
+            WeatherData(self.__city_name.get()).hourly_data(),
+        )
 
     def set_daily_weather(
         self,
@@ -428,12 +466,12 @@ class WeatherApp:
         frame = tk.Frame(
             self.root,
             width=980,
-            height=150,
+            height=140,
             bg="#204c8a",
         )
         frame.place(
             x=40,
-            y=300,
+            y=310,
         )
         # LABEL TITLE
         title_lbl = tk.Label(
@@ -448,10 +486,10 @@ class WeatherApp:
             y=0,
         )
 
-        def current_weather_box():
+        def current_weather_box(frame_bg):
             # BOX CURRENT
             box_cr = tk.Frame(
-                frame,
+                frame_bg,
                 bg="#204c8a",
             )
             box_cr.place(
@@ -536,7 +574,7 @@ class WeatherApp:
                 y=41,
             )
 
-        current_weather_box()
+        current_weather_box(frame)
         # SHOW OTHER DAYS WEATHER
         x_box = 240
         for weather in future_data:
@@ -613,6 +651,110 @@ class WeatherApp:
             )
             x_box += 130
 
+    def set_hourly_weather(
+        self,
+        hourly_data: list,
+    ):
+        """Set hourly forecast."""
+        frame_hou = tk.Frame(
+            self.root,
+            width=980,
+            height=150,
+            bg="#204c8a",
+        )
+        frame_hou.place(
+            x=40,
+            y=450,
+        )
+        # LABEL TITLE
+        title_lbl_hou = tk.Label(
+            frame_hou,
+            fg="#fefefe",
+            bg="#204c8a",
+            font=("Roboto Bold", 10),
+            text="HOURLY FORECAST",
+        )
+        title_lbl_hou.place(
+            x=0,
+            y=0,
+        )
+
+        # SHOW OTHER DAYS WEATHER
+        count = 0
+        for weather_hou in hourly_data:
+            box_future_hou = tk.Frame(
+                frame_hou,
+                bg="#204c8a",
+                width=120,
+                height=118,
+            )
+            box_future_hou.place(
+                x=count,
+                y=25,
+            )
+            box_future_bg_hou = tk.Label(
+                box_future_hou,
+                bg="#204c8a",
+                image=self.images["other_w_bg"],
+                border=0,
+            )
+            box_future_bg_hou.pack()
+
+            date_lbl_one_hou = tk.Label(
+                box_future_hou,
+                fg="#fefefe",
+                font=("Roboto Regular", 9),
+                text=weather_hou["hour"],
+                bg="#315793",
+            )
+            date_lbl_one_hou.place(
+                x=10,
+                y=5,
+            )
+            self.images["ico_resize" + str(count)] = ImageTk.PhotoImage(
+                self.resize_image(
+                    Image.open(
+                        img_path + weather_hou["icon"] + ".png",
+                    ),
+                    50,
+                    50,
+                ),
+            )
+            icon_lbl_one_hou = tk.Label(
+                box_future_hou,
+                image=self.images["ico_resize" + str(count)],
+                bg="#315793",
+            )
+            icon_lbl_one_hou.place(
+                x=8,
+                y=25,
+                width=60,
+                height=60,
+            )
+            temp_lbl_one_hou = tk.Label(
+                box_future_hou,
+                fg="#fefefe",
+                font=("Roboto Bold", 9),
+                text=f"{weather_hou['temp']:.0f}°",
+                bg="#315793",
+            )
+            temp_lbl_one_hou.place(
+                x=75,
+                y=32,
+            )
+            humidity_lbl_one_hou = tk.Label(
+                box_future_hou,
+                fg="#fefefe",
+                font=("Roboto Bold", 9),
+                text=f"{weather_hou['humidity']}%",
+                bg="#315793",
+            )
+            humidity_lbl_one_hou.place(
+                x=75,
+                y=55,
+            )
+            count += 130
+
     @staticmethod
     def __load_image(img_name: str):
         return tk.PhotoImage(
@@ -625,4 +767,4 @@ class WeatherApp:
         return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
 
-b = WeatherApp("980x630+100+10", "Weather app - Karyar", "icon.png")
+b = WeatherApp("980x600+100+10", "Weather app - Karyar", "icon.png")

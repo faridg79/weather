@@ -1,4 +1,6 @@
 """Import the necessary modules to build the weather app."""
+import threading
+import time
 import tkinter as tk
 from configparser import ConfigParser
 from datetime import datetime, timedelta
@@ -130,12 +132,15 @@ class WeatherData:
                 hourly_weather.append(item)
         hourly_list = []
         for weather in hourly_weather:
-            dt_txt = weather["dt_txt"]
-            dt_txt_parts = dt_txt.split(" ")[-1].split(":")
+            dt_txt_parts = weather["dt_txt"].split(" ")[-1].split(":")
             hour = int(dt_txt_parts[0])
+            hour_data = {
+                "hour": hour if hour <= 12 else hour - 12 if hour > 12 else 12,
+                "am_pm": "AM" if hour < 12 else "PM",
+            }
             hourly_list.append(
                 {
-                    "hour": hour,
+                    "hour": f"{hour_data['hour']} {hour_data['am_pm']}",
                     "temp": weather["main"]["temp"],
                     "humidity": weather["main"]["humidity"],
                     "icon": weather["weather"][0]["icon"],
@@ -195,12 +200,12 @@ class WeatherApp:
         self.root.configure(bg="#204c8a")
         # LOAD IMAGES
         self.images = {
-            "search_bar_bg": WeatherApp.__load_image("search.png"),
-            "search_icon": WeatherApp.__load_image("loupe.png"),
-            "location": WeatherApp.__load_image("location.png"),
-            "current_bg": WeatherApp.__load_image("cr_img.png"),
-            "cr_w_bg": WeatherApp.__load_image("cr_w_bg.png"),
-            "other_w_bg": WeatherApp.__load_image("other_w_bg.png"),
+            "search_bar_bg": self.load_image("search"),
+            "search_icon": self.load_image("loupe"),
+            "location": self.load_image("location"),
+            "current_bg": self.load_image("cr_img"),
+            "cr_w_bg": self.load_image("cr_w_bg"),
+            "other_w_bg": self.load_image("other_w_bg"),
         }
         # CITY NAME
         self.__city_name = tk.StringVar()
@@ -302,163 +307,175 @@ class WeatherApp:
 
     def set_current_weather(self):
         """Set current weather."""
-        get_data = WeatherData(self.__city_name.get()).current_data()
-        my_var = {
-            "wind": (int(get_data["wind"]) * 3600) / 1000,
-            "feels_like": str(int(get_data["feels_like"])),
-            "vis": int(get_data["visibility"]),
-            "get_info_city": WeatherData(
-                self.__city_name.get(),
-            ).get_info_city(),
-        }
-        self.city_info_data.configure(
-            text=my_var["get_info_city"]["city"]
-            + my_var["get_info_city"]["state"]
-            + my_var["get_info_city"]["country"],
-        )
 
-        frame = tk.Frame(
-            self.root,
-            width=490,
-            height=220,
-            bg="#204c8a",
-        )
-        frame.place(
-            x=40,
-            y=80,
-        )
-        cr_lbl = tk.Label(
-            frame,
-            image=self.images["current_bg"],
-            bg="#204c8a",
-        )
-        cr_lbl.place(
-            x=0,
-            y=0,
-        )
-        cr_weather_text = tk.Label(
-            frame,
-            text="Current weather",
-            bg="#174384",
-            fg="#fefefe",
-            font=("Roboto Bold", 11),
-        )
-        cr_weather_text.place(
-            x=9,
-            y=13,
-        )
-        self.images["current_icon"] = WeatherApp.__load_image(
-            get_data["icon"] + ".png",
-        )
-        cr_weather_icon_lbl = tk.Label(
-            frame,
-            image=self.images["current_icon"],
-            bg="#174384",
-        )
-        cr_weather_icon_lbl.place(
-            x=2,
-            y=35,
-        )
-        cr_temp_text = tk.Label(
-            frame,
-            text=str(int(get_data["temp"])) + "°",
-            bg="#174384",
-            fg="#fefefe",
-            font=("Roboto Regular", 40),
-        )
-        cr_temp_text.place(
-            x=95,
-            y=55,
-        )
-        main_weather = tk.Label(
-            frame,
-            text=get_data["weather"],
-            bg="#174384",
-            fg="#fefefe",
-            font=("Roboto Black", 12),
-        )
-        main_weather.place(
-            x=199,
-            y=65,
-        )
+        def update_weather():
+            get_data = WeatherData(self.__city_name.get()).current_data()
+            my_var = {
+                "wind": (int(get_data["wind"]) * 3600) / 1000,
+                "feels_like": str(int(get_data["feels_like"])),
+                "vis": int(get_data["visibility"]),
+                "get_info_city": WeatherData(
+                    self.__city_name.get(),
+                ).get_info_city(),
+                "get_fu_data": WeatherData(
+                    self.__city_name.get(),
+                ).future_data(),
+                "get_hourly_data": WeatherData(
+                    self.__city_name.get(),
+                ).hourly_data(),
+            }
+            time.sleep(0.5)
+            self.city_info_data.configure(
+                text=my_var["get_info_city"]["city"]
+                + my_var["get_info_city"]["state"]
+                + my_var["get_info_city"]["country"],
+            )
 
-        feels_like = tk.Label(
-            frame,
-            text=f"feels like  {my_var['feels_like']}°",
-            bg="#174384",
-            fg="#fefefe",
-            font=("Roboto Regular", 10),
-        )
-        feels_like.place(
-            x=199,
-            y=90,
-        )
-        description = tk.Label(
-            frame,
-            text=get_data["description"]
-            + ". The high will be "
-            + str(int(get_data["temp_max"]))
-            + "°",
-            bg="#174384",
-            fg="#fefefe",
-            font=("Roboto Regular", 10),
-        )
-        description.place(
-            x=10,
-            y=128,
-        )
+            frame = tk.Frame(
+                self.root,
+                width=490,
+                height=220,
+                bg="#204c8a",
+            )
+            frame.place(
+                x=40,
+                y=80,
+            )
+            cr_lbl = tk.Label(
+                frame,
+                image=self.images["current_bg"],
+                bg="#204c8a",
+            )
+            cr_lbl.place(
+                x=0,
+                y=0,
+            )
+            cr_weather_text = tk.Label(
+                frame,
+                text="Current weather",
+                bg="#174384",
+                fg="#fefefe",
+                font=("Roboto Bold", 11),
+            )
+            cr_weather_text.place(
+                x=9,
+                y=13,
+            )
+            self.images["current_icon"] = self.load_image(get_data["icon"])
+            cr_weather_icon_lbl = tk.Label(
+                frame,
+                image=self.images["current_icon"],
+                bg="#174384",
+            )
+            cr_weather_icon_lbl.place(
+                x=2,
+                y=35,
+            )
+            cr_temp_text = tk.Label(
+                frame,
+                text=str(int(get_data["temp"])) + "°",
+                bg="#174384",
+                fg="#fefefe",
+                font=("Roboto Regular", 40),
+            )
+            cr_temp_text.place(
+                x=95,
+                y=55,
+            )
+            main_weather = tk.Label(
+                frame,
+                text=get_data["weather"],
+                bg="#174384",
+                fg="#fefefe",
+                font=("Roboto Black", 12),
+            )
+            main_weather.place(
+                x=199,
+                y=65,
+            )
 
-        wind_speed = tk.Label(
-            frame,
-            text=f"Wind\n {int(my_var['wind'])} km/h",
-            bg="#174384",
-            fg="#fefefe",
-            font=("Roboto Regular", 10),
-        )
-        wind_speed.place(
-            x=10,
-            y=165,
-        )
-        humidity = tk.Label(
-            frame,
-            text=f"Humidity\n {get_data['humidity']}%",
-            bg="#174384",
-            fg="#fefefe",
-            font=("Roboto Regular", 10),
-        )
-        humidity.place(
-            x=90,
-            y=165,
-        )
-        visibility = tk.Label(
-            frame,
-            text=f"Visibility\n {my_var['vis'] / 1000:.0f} km",
-            bg="#174384",
-            fg="#fefefe",
-            font=("Roboto Regular", 10),
-        )
-        visibility.place(
-            x=170,
-            y=165,
-        )
-        pressure = tk.Label(
-            frame,
-            text=f"Pressure\n {int(get_data['pressure'])} mb",
-            bg="#174384",
-            fg="#fefefe",
-            font=("Roboto Regular", 10),
-        )
-        pressure.place(
-            x=250,
-            y=165,
-        )
-        self.set_daily_weather(
-            get_data,
-            WeatherData(self.__city_name.get()).future_data(),
-        )
-        self.set_hourly_weather(
-            WeatherData(self.__city_name.get()).hourly_data(),
-        )
+            feels_like = tk.Label(
+                frame,
+                text=f"feels like  {my_var['feels_like']}°",
+                bg="#174384",
+                fg="#fefefe",
+                font=("Roboto Regular", 10),
+            )
+            feels_like.place(
+                x=199,
+                y=90,
+            )
+            description = tk.Label(
+                frame,
+                text=get_data["description"]
+                + ". The high will be "
+                + str(int(get_data["temp_max"]))
+                + "°",
+                bg="#174384",
+                fg="#fefefe",
+                font=("Roboto Regular", 10),
+            )
+            description.place(
+                x=10,
+                y=128,
+            )
+
+            wind_speed = tk.Label(
+                frame,
+                text=f"Wind\n {int(my_var['wind'])} km/h",
+                bg="#174384",
+                fg="#fefefe",
+                font=("Roboto Regular", 10),
+            )
+            wind_speed.place(
+                x=10,
+                y=165,
+            )
+            humidity = tk.Label(
+                frame,
+                text=f"Humidity\n {get_data['humidity']}%",
+                bg="#174384",
+                fg="#fefefe",
+                font=("Roboto Regular", 10),
+            )
+            humidity.place(
+                x=90,
+                y=165,
+            )
+            visibility = tk.Label(
+                frame,
+                text=f"Visibility\n {my_var['vis'] / 1000:.0f} km",
+                bg="#174384",
+                fg="#fefefe",
+                font=("Roboto Regular", 10),
+            )
+            visibility.place(
+                x=170,
+                y=165,
+            )
+            pressure = tk.Label(
+                frame,
+                text=f"Pressure\n {int(get_data['pressure'])} mb",
+                bg="#174384",
+                fg="#fefefe",
+                font=("Roboto Regular", 10),
+            )
+            pressure.place(
+                x=250,
+                y=165,
+            )
+            self.set_daily_weather(
+                get_data,
+                my_var["get_fu_data"],
+            )
+            self.set_hourly_weather(
+                my_var["get_hourly_data"],
+            )
+
+        update_thread = threading.Thread(target=update_weather)
+
+        # Start the thread to execute the function in the background
+        update_thread.start()
 
     def set_daily_weather(
         self,
@@ -524,14 +541,10 @@ class WeatherApp:
                 x=10,
                 y=5,
             )
-            self.images["cr_resized_image"] = ImageTk.PhotoImage(
-                self.resize_image(
-                    Image.open(
-                        img_path + get_data["icon"] + ".png",
-                    ),
-                    60,
-                    60,
-                ),
+            self.images["cr_resized_image"] = self.load_image(
+                get_data["icon"],
+                60,
+                60,
             )
             icon_lbl_one = tk.Label(
                 box_cr,
@@ -611,14 +624,10 @@ class WeatherApp:
                 x=10,
                 y=5,
             )
-            self.images["fu_resized_img" + str(x_box)] = ImageTk.PhotoImage(
-                self.resize_image(
-                    Image.open(
-                        img_path + weather["icon"] + ".png",
-                    ),
-                    60,
-                    60,
-                ),
+            self.images["fu_resized_img" + str(x_box)] = self.load_image(
+                weather["icon"],
+                60,
+                60,
             )
             icon_lbl_one = tk.Label(
                 box_future,
@@ -710,21 +719,17 @@ class WeatherApp:
                 box_future_hou,
                 fg="#fefefe",
                 font=("Roboto Regular", 9),
-                text=weather_hou["hour"],
+                text=f"{weather_hou['hour']}",
                 bg="#315793",
             )
             date_lbl_one_hou.place(
                 x=10,
                 y=5,
             )
-            self.images["ico_resize" + str(count)] = ImageTk.PhotoImage(
-                self.resize_image(
-                    Image.open(
-                        img_path + weather_hou["icon"] + ".png",
-                    ),
-                    50,
-                    50,
-                ),
+            self.images["ico_resize" + str(count)] = self.load_image(
+                weather_hou["icon"],
+                60,
+                60,
             )
             icon_lbl_one_hou = tk.Label(
                 box_future_hou,
@@ -809,15 +814,12 @@ class WeatherApp:
         chart()
 
     @staticmethod
-    def __load_image(img_name: str):
-        return tk.PhotoImage(
-            file=img_path + img_name,
-        )
-
-    @staticmethod
-    def resize_image(image, new_width, new_height):
-        """Resize images."""
-        return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    def load_image(img_name, width=None, height=None, resize=True):
+        """Load images and resize."""
+        image = Image.open(img_path + img_name + ".png")
+        if resize and (width is not None or height is not None):
+            image = image.resize((width, height), Image.Resampling.LANCZOS)
+        return ImageTk.PhotoImage(image)
 
 
 b = WeatherApp("980x600+100+10", "Weather app - Karyar", "icon.png")

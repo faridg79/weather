@@ -182,14 +182,13 @@ class WeatherApp:
 
     def __init__(
         self,
-        screen_size: str,
         screen_title: str,
         icon_name: str,
     ) -> None:
         """Initialize the app."""
         self.root = tk.Tk()
         # ADD SCREEN SIZE
-        self.root.geometry(screen_size)
+        self.root.geometry("980x600+100+10")
         self.root.resizable(False, False)
         # ADD TITLE
         self.root.title(screen_title)
@@ -822,4 +821,4 @@ class WeatherApp:
         return ImageTk.PhotoImage(image)
 
 
-run_app = WeatherApp("980x600+100+10", "Weather app - Karyar", "icon.png")
+run_app = WeatherApp("Weather app - Karyar", "icon.png")

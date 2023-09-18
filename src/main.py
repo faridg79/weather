@@ -822,4 +822,4 @@ class WeatherApp:
         return ImageTk.PhotoImage(image)
 
 
-b = WeatherApp("980x600+100+10", "Weather app - Karyar", "icon.png")
+run_app = WeatherApp("980x600+100+10", "Weather app - Karyar", "icon.png")
